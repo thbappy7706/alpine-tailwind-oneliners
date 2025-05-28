@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Mood Board</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <style>
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css');
+
+        .sunny { background: linear-gradient(135deg, #FEF08A, #FBBF24, #F59E0B); }
+        .cloudy { background: linear-gradient(135deg, #E5E7EB, #9CA3AF, #6B7280); }
+        .rainy { background: linear-gradient(135deg, #1E3A8A, #3B82F6, #60A5FA); }
+        .stormy { background: linear-gradient(135deg, #374151, #1F2937, #111827); }
+        .snowy { background: linear-gradient(135deg, #F8FAFC, #E2E8F0, #CBD5E1); }
+        .foggy { background: linear-gradient(135deg, #F3F4F6, #D1D5DB, #9CA3AF); }
+        .clear-night { background: linear-gradient(135deg, #1E1B4B, #312E81, #4C1D95); }
+
+        .weather-animation {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .rain-drop {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            width: 2px;
+            animation: rain 0.5s linear infinite;
+        }
+
+        .snow-flake {
+            position: absolute;
+            color: white;
+            animation: snow 3s linear infinite;
+        }
+
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes rain {
+            to { transform: translateY(100vh); }
+        }
+
+        @keyframes snow {
+            to { transform: translateY(100vh) rotate(360deg); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
+            to { box-shadow: 0 0 40px rgba(255, 255, 255, 0.8); }
+        }
+    </style>
+</head>
+<body class="min-h-screen transition-all duration-1000"
+      x-data="weatherApp()"
+      x-init="init()"
+      :class="backgroundClass">
+
+<div class="weather-animation" x-html="animationElements"></div>
+
+<div class="min-h-screen flex items-center justify-center p-4 relative z-10">
+    <div class="bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-md w-full text-center text-white">
+
+        <!-- Loading State -->
+        <div x-show="loading" class="space-y-4">
+            <div class="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto"></div>
+            <p class="text-lg">Getting weather data...</p>
+        </div>
+
+        <!-- Weather Display -->
+        <div x-show="!loading && weather" class="space-y-6">
+            <!-- Location -->
+            <h1 class="text-2xl font-bold" x-text="weather.location"></h1>
+
+            <!-- Weather Icon & Temp -->
+            <div class="flex items-center justify-center space-x-4">
+                <div class="text-6xl" x-text="weatherIcon"></div>
+                <div class="text-5xl font-light" x-text="weather.temp + '°'"></div>
+            </div>
+
+            <!-- Description -->
+            <p class="text-xl capitalize" x-text="weather.description"></p>
+
+            <!-- Weather Details -->
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                    <div class="font-semibold">Feels Like</div>
+                    <div x-text="weather.feelsLike + '°'"></div>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                    <div class="font-semibold">Humidity</div>
+                    <div x-text="weather.humidity + '%'"></div>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                    <div class="font-semibold">Wind</div>
+                    <div x-text="weather.windSpeed + ' mph'"></div>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                    <div class="font-semibold">Visibility</div>
+                    <div x-text="weather.visibility + ' mi'"></div>
+                </div>
+            </div>
+
+            <!-- Mood Message -->
+            <div class="bg-white bg-opacity-30 rounded-lg p-4 pulse-glow">
+                <p class="text-lg font-medium" x-text="moodMessage"></p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error" class="space-y-4">
+            <div class="text-6xl">⚠️</div>
+            <p class="text-lg" x-text="error"></p>
+            <button @click="init()" class="bg-white bg-opacity-30 hover:bg-opacity-50 px-6 py-2 rounded-lg transition-all">
+                Try Again
+            </button>
+        </div>
+
+        <!-- Refresh Button -->
+        <button x-show="!loading && weather"
+                @click="fetchWeather()"
+                class="mt-6 bg-white bg-opacity-30 hover:bg-opacity-50 px-6 py-2 rounded-lg transition-all">
+            🔄 Refresh
+        </button>
+    </div>
+</div>
+
+<script>
+    function weatherApp() {
+        return {
+            weather: null,
+            loading: true,
+            error: null,
+            backgroundClass: 'sunny',
+            weatherIcon: '☀️',
+            moodMessage: '',
+            animationElements: '',
+
+            async init() {
+                this.loading = true;
+                this.error = null;
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.fetchWeather(position.coords.latitude, position.coords.longitude);
+                        },
+                        () => {
+                            // Fallback to a default city if geolocation fails
+                            this.fetchWeather(40.7128, -74.0060); // New York
+                        }
+                    );
+                } else {
+                    this.fetchWeather(40.7128, -74.0060); // New York
+                }
+            },
+
+            async fetchWeather(lat = null, lon = null) {
+                this.loading = true;
+                this.error = null;
+
+                try {
+                    // Using OpenWeatherMap API (you'll need to get a free API key)
+                    // For demo purposes, using mock data
+                    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
+
+                    // Mock weather data - in real implementation, replace with actual API call
+                    const mockWeatherData = this.getMockWeatherData();
+
+                    this.weather = mockWeatherData;
+                    this.updateMood(mockWeatherData.condition);
+                    this.loading = false;
+
+                } catch (err) {
+                    this.error = 'Unable to fetch weather data. Please try again.';
+                    this.loading = false;
+                }
+            },
+
+            getMockWeatherData() {
+                const conditions = [
+                    { condition: 'sunny', temp: 75, description: 'sunny skies', location: 'Your City' },
+                    { condition: 'cloudy', temp: 68, description: 'partly cloudy', location: 'Your City' },
+                    { condition: 'rainy', temp: 58, description: 'light rain', location: 'Your City' },
+                    { condition: 'stormy', temp: 55, description: 'thunderstorms', location: 'Your City' },
+                    { condition: 'snowy', temp: 28, description: 'snow showers', location: 'Your City' },
+                    { condition: 'foggy', temp: 45, description: 'foggy', location: 'Your City' }
+                ];
+
+                const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+
+                return {
+                    ...randomCondition,
+                    feelsLike: randomCondition.temp + Math.floor(Math.random() * 10) - 5,
+                    humidity: Math.floor(Math.random() * 40) + 40,
+                    windSpeed: Math.floor(Math.random() * 15) + 2,
+                    visibility: Math.floor(Math.random() * 8) + 2
+                };
+            },
+
+            updateMood(condition) {
+                const moodData = {
+                    sunny: {
+                        class: 'sunny',
+                        icon: '☀️',
+                        message: 'Perfect day to embrace the sunshine! ✨',
+                        animation: this.createSunRays()
+                    },
+                    cloudy: {
+                        class: 'cloudy',
+                        icon: '☁️',
+                        message: 'Cozy weather for deep thoughts 💭',
+                        animation: this.createClouds()
+                    },
+                    rainy: {
+                        class: 'rainy',
+                        icon: '🌧️',
+                        message: 'Rain brings growth and renewal 🌱',
+                        animation: this.createRain()
+                    },
+                    stormy: {
+                        class: 'stormy',
+                        icon: '⛈️',
+                        message: 'Powerful energy in the air ⚡',
+                        animation: this.createStorm()
+                    },
+                    snowy: {
+                        class: 'snowy',
+                        icon: '❄️',
+                        message: 'Winter wonderland magic ✨',
+                        animation: this.createSnow()
+                    },
+                    foggy: {
+                        class: 'foggy',
+                        icon: '🌫️',
+                        message: 'Mysterious and contemplative mood 🤔',
+                        animation: this.createFog()
+                    }
+                };
+
+                const mood = moodData[condition] || moodData.sunny;
+                this.backgroundClass = mood.class;
+                this.weatherIcon = mood.icon;
+                this.moodMessage = mood.message;
+                this.animationElements = mood.animation;
+            },
+
+            createRain() {
+                let rainHtml = '';
+                for (let i = 0; i < 50; i++) {
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 2;
+                    const duration = 0.5 + Math.random() * 0.5;
+                    rainHtml += `<div class="rain-drop" style="left: ${left}%; animation-delay: ${delay}s; animation-duration: ${duration}s; height: ${10 + Math.random() * 20}px;"></div>`;
+                }
+                return rainHtml;
+            },
+
+            createSnow() {
+                let snowHtml = '';
+                const flakes = ['❄', '❅', '❆'];
+                for (let i = 0; i < 30; i++) {
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 3;
+                    const duration = 2 + Math.random() * 2;
+                    const flake = flakes[Math.floor(Math.random() * flakes.length)];
+                    snowHtml += `<div class="snow-flake" style="left: ${left}%; animation-delay: ${delay}s; animation-duration: ${duration}s; font-size: ${10 + Math.random() * 10}px;">${flake}</div>`;
+                }
+                return snowHtml;
+            },
+
+            createClouds() {
+                let cloudHtml = '';
+                for (let i = 0; i < 5; i++) {
+                    const left = Math.random() * 80;
+                    const top = Math.random() * 50;
+                    const delay = Math.random() * 6;
+                    const width = 60 + Math.random() * 40;
+                    const height = 30 + Math.random() * 20;
+                    cloudHtml += `<div class="cloud" style="left: ${left}%; top: ${top}%; width: ${width}px; height: ${height}px; animation-delay: ${delay}s;"></div>`;
+                }
+                return cloudHtml;
+            },
+
+            createSunRays() {
+                return '<div class="absolute inset-0 animate-pulse opacity-30 bg-gradient-radial from-yellow-200 to-transparent"></div>';
+            },
+
+            createStorm() {
+                let stormHtml = this.createRain();
+                // Add lightning effect
+                stormHtml += '<div class="absolute inset-0 bg-white opacity-0 animate-ping" style="animation-duration: 3s;"></div>';
+                return stormHtml;
+            },
+
+            createFog() {
+                let fogHtml = '';
+                for (let i = 0; i < 8; i++) {
+                    const delay = Math.random() * 6;
+                    const duration = 4 + Math.random() * 4;
+                    fogHtml += `<div class="cloud" style="left: ${Math.random() * 90}%; top: ${20 + Math.random() * 60}%; width: ${100 + Math.random() * 100}px; height: ${40 + Math.random() * 30}px; animation-delay: ${delay}s; animation-duration: ${duration}s; opacity: 0.4;"></div>`;
+                }
+                return fogHtml;
+            }
+        }
+    }
+</script>
+</body>
+</html>

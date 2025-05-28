@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auto Quote - Alpine.js</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body {
+            background: linear-gradient(135deg, #293276 0%, #278757 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Skeleton animation */
+        .animate-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-6">
+
+<div
+        x-data="quoteApp()"
+        x-init="initAutoRefresh()"
+        class="max-w-5xl w-full bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl shadow-2xl p-10 text-center text-white
+           drop-shadow-lg transform transition-all duration-500 hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]"
+>
+    <!-- Skeleton Loader -->
+    <template x-if="loading">
+        <div class="space-y-6">
+            <div class="h-12 bg-white bg-opacity-40 rounded-lg animate-pulse mx-auto max-w-[100%]"></div>
+            <div class="h-8 bg-white bg-opacity-30 rounded-lg animate-pulse w-40 ml-auto"></div>
+        </div>
+    </template>
+
+    <!-- Quote Content -->
+    <template x-if="!loading && originalQuote">
+        <blockquote
+                x-transition:enter="transition ease-out duration-700"
+                x-transition:enter-start="opacity-0 translate-y-4"
+                x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-700"
+                x-transition:leave-start="opacity-100 translate-y-0"
+                x-transition:leave-end="opacity-0 -translate-y-4"
+                class="italic text-3xl mb-6 leading-relaxed select-text"
+        >
+            <p>“<span x-text="originalQuote"></span>”</p>
+            <footer class="mt-2 text-right text-xl font-semibold opacity-80 select-text" x-text="`— ${originalAuthor}`"></footer>
+        </blockquote>
+    </template>
+
+    <button
+            @click="fetchQuote()"
+            class="mt-8 px-6 py-3 bg-yellow-400 text-gray-900 font-semibold rounded-xl hover:bg-yellow-300 focus:outline-none transition"
+    >
+        New Quote
+    </button>
+
+    <button
+            @click="toggleAutoRefresh()"
+            class="mt-4 ml-4 px-6 py-3 bg-gray-300 text-gray-800 font-semibold rounded-xl hover:bg-gray-200 focus:outline-none transition"
+            x-text="autoRefresh ? 'Stop Auto Refresh' : 'Start Auto Refresh'"
+    ></button>
+
+    <!-- Footer -->
+    <div class="mt-12 text-center">
+        <div class="gradient-bg text-white py-4 px-8 rounded-2xl shadow-lg inline-block">
+            <p class="text-sm flex items-center justify-center gap-2">
+                <span>Developed with</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                </svg>
+                <span>by</span>
+                <a href="https://tanvirhossenbappy.com/" target="_blank" class="font-bold hover:underline transition-all flex items-center">
+                    Tanvir Hossen Bappy
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                    </svg>
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function quoteApp() {
+        return {
+            originalQuote: '',
+            originalAuthor: '',
+            loading: false,
+            autoRefresh: true,
+            intervalId: null,
+
+            async fetchQuote() {
+                this.loading = true;
+                try {
+                    const res = await fetch('https://dummyjson.com/quotes/random');
+                    const data = await res.json();
+
+                    this.originalQuote = data.quote;
+                    this.originalAuthor = data.author;
+
+                } catch (e) {
+                    this.originalQuote = 'Failed to load quote.';
+                    this.originalAuthor = '';
+                    console.error(e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            initAutoRefresh() {
+                this.fetchQuote();
+                this.intervalId = setInterval(() => {
+                    if (this.autoRefresh) this.fetchQuote();
+                }, 5000);
+            },
+
+            toggleAutoRefresh() {
+                this.autoRefresh = !this.autoRefresh;
+                if (this.autoRefresh) {
+                    this.fetchQuote();
+                }
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

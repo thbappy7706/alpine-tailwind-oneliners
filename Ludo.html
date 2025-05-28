@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ludo Mini Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body {
+      background-color: #003153;
+      background-image: linear-gradient(315deg, #003153 0%, #1B1B1B 74%);
+    }
+    .cell {
+      width: 60px;
+      height: 60px;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6 text-white">
+
+<div x-data="ludoGame()" class="p-6 rounded-xl bg-white/10 backdrop-blur shadow-2xl text-center space-y-4">
+  <h1 class="text-2xl font-bold">🎲 Mini Ludo</h1>
+
+  <!-- Dice and Turn Info -->
+  <div>
+    <div class="text-lg">Current Turn: <span x-text="turnText" class="font-bold"></span></div>
+    <div class="text-2xl font-mono mt-2">🎯 Dice: <span x-text="dice"></span></div>
+    <button @click="rollDice()" class="mt-3 px-6 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 font-semibold">
+      Roll Dice
+    </button>
+  </div>
+
+  <!-- Simple 5x5 Board -->
+  <div class="grid grid-cols-5 gap-1 border border-white mt-4">
+    <template x-for="i in 25" :key="i">
+      <div class="cell bg-white/20 flex items-center justify-center relative">
+        <!-- Red Player -->
+        <div x-show="player1Pos === i - 1" class="w-4 h-4 rounded-full bg-red-500 absolute top-1 left-1"></div>
+        <!-- Blue Player -->
+        <div x-show="player2Pos === i - 1" class="w-4 h-4 rounded-full bg-blue-500 absolute bottom-1 right-1"></div>
+        <span class="text-xs text-white/50" x-text="i - 1"></span>
+      </div>
+    </template>
+  </div>
+
+  <!-- Win Message -->
+  <div x-show="winner" class="mt-4 text-xl font-bold text-green-300">
+    🏆 <span x-text="winner"></span> Wins!
+  </div>
+
+  <!-- Footer -->
+  <div class="mt-12 text-center">
+    <div class="gradient-bg text-white py-4 px-8 rounded-2xl shadow-lg inline-block">
+      <p class="text-sm flex items-center justify-center gap-2">
+        <span>Developed with</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+        </svg>
+        <span>by</span>
+        <a href="https://tanvirhossenbappy.com/" target="_blank" class="font-bold hover:underline transition-all flex items-center">
+          Tanvir Hossen Bappy
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+          </svg>
+        </a>
+      </p>
+    </div>
+  </div>
+
+
+
+</div>
+
+
+
+<script>
+  function ludoGame() {
+    return {
+      player1Pos: 0,
+      player2Pos: 0,
+      turn: 1,
+      dice: 1,
+      winner: '',
+
+      get turnText() {
+        return this.turn === 1 ? '🔴 Red' : '🔵 Blue';
+      },
+
+      rollDice() {
+        if (this.winner) return;
+
+        this.dice = Math.floor(Math.random() * 6) + 1;
+
+        if (this.turn === 1) {
+          this.player1Pos = Math.min(this.player1Pos + this.dice, 24);
+          if (this.player1Pos === 24) this.winner = '🔴 Red';
+        } else {
+          this.player2Pos = Math.min(this.player2Pos + this.dice, 24);
+          if (this.player2Pos === 24) this.winner = '🔵 Blue';
+        }
+
+        // Change turn
+        if (!this.winner) {
+          this.turn = this.turn === 1 ? 2 : 1;
+        }
+      }
+    }
+  }
+</script>
+
+</body>
+</html>

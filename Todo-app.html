@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App - Alpine.js</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                        accent: '#d946ef',
+                        dark: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+        }
+        .checkbox-custom:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+            background-size: 200% 200%;
+            animation: gradientAnimation 10s ease infinite;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .checkbox-custom:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen py-8 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+<div class="container mx-auto px-4 max-w-3xl" x-data="{
+        todos: JSON.parse(localStorage.getItem('todos') || '[]'),
+        newTodo: '',
+        filter: 'all',
+        showModal: false,
+        addTodo() {
+            if (this.newTodo.trim() === '') return;
+            this.todos.push({
+                id: Date.now(),
+                text: this.newTodo,
+                completed: false
+            });
+            this.newTodo = '';
+            this.showModal = false;
+            this.saveTodos();
+        },
+        toggleTodo(id) {
+            const todo = this.todos.find(item => item.id === id);
+            if (todo) todo.completed = !todo.completed;
+            this.saveTodos();
+        },
+        deleteTodo(id) {
+            this.todos = this.todos.filter(todo => todo.id !== id);
+            this.saveTodos();
+        },
+        saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(this.todos));
+        },
+        filteredTodos() {
+            return this.todos.filter(todo => {
+                if (this.filter === 'completed') return todo.completed;
+                if (this.filter === 'active') return !todo.completed;
+                return true;
+            });
+        }
+    }">
+    <div class="gradient-bg p-6 rounded-xl shadow-lg mb-8 relative overflow-hidden">
+        <div class="absolute -right-6 -top-6 opacity-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-32 w-32" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="flex flex-col items-center justify-center relative z-10">
+            <div class="floating mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold text-center text-white">Your Tasks</h1>
+            <p class="text-white text-center text-sm opacity-80 mt-2">Stay organized and productive</p>
+        </div>
+    </div>
+
+
+    <!-- Add Todo Button -->
+    <button
+            @click="showModal = true"
+            class="w-full gradient-bg text-white px-4 py-3 rounded-lg hover:shadow-lg transition duration-300 mb-6 font-semibold flex items-center justify-center gap-2 shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        Add New Todo
+    </button>
+
+    <!-- Filters -->
+    <div class="flex gap-2 mb-6 bg-white p-2 rounded-xl shadow-md">
+        <button
+                @click="filter = 'all'"
+                :class="filter === 'all' ? 'gradient-bg text-white shadow-md' : 'bg-gray-100 text-dark hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg flex-1 transition duration-300 font-medium">
+            All
+        </button>
+        <button
+                @click="filter = 'active'"
+                :class="filter === 'active' ? 'gradient-bg text-white shadow-md' : 'bg-gray-100 text-dark hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg flex-1 transition duration-300 font-medium">
+            Active
+        </button>
+        <button
+                @click="filter = 'completed'"
+                :class="filter === 'completed' ? 'gradient-bg text-white shadow-md' : 'bg-gray-100 text-dark hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg flex-1 transition duration-300 font-medium">
+            Completed
+        </button>
+    </div>
+
+    <!-- Todo List -->
+    <div class="space-y-4">
+        <template x-for="todo in filteredTodos()" :key="todo.id">
+            <div class="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-between border-l-4 border-primary">
+                <div class="flex items-center gap-3">
+                    <input
+                            type="checkbox"
+                            :checked="todo.completed"
+                            @click="toggleTodo(todo.id)"
+                            class="checkbox-custom w-5 h-5 rounded-md border-2 border-primary appearance-none checked:bg-primary checked:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer">
+                    <span
+                            x-text="todo.text"
+                            :class="todo.completed ? 'line-through text-gray-400' : 'text-dark'"
+                            class="text-lg font-medium"></span>
+                </div>
+                <button
+                        @click="deleteTodo(todo.id)"
+                        class="text-gray-400 hover:text-red-500 transition-colors duration-300 p-1 rounded-full hover:bg-red-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Modal -->
+    <div
+            x-show="showModal"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform scale-90"
+            x-transition:enter-end="opacity-100 transform scale-100"
+            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave-start="opacity-100 transform scale-100"
+            x-transition:leave-end="opacity-0 transform scale-90"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-40"></div>
+            <div class="relative bg-white rounded-xl p-8 max-w-md w-full shadow-2xl border-t-4 border-primary">
+                <h2 class="text-2xl font-bold mb-6 text-dark flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add New Todo
+                </h2>
+                <form @submit.prevent="addTodo()">
+                    <input
+                            type="text"
+                            x-model="newTodo"
+                            placeholder="What needs to be done?"
+                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary mb-6 text-dark placeholder-gray-400">
+                    <div class="flex justify-end gap-3">
+                        <button
+                                type="button"
+                                @click="showModal = false"
+                                class="px-5 py-2 bg-gray-100 text-dark rounded-lg hover:bg-gray-200 transition duration-300 font-medium">
+                            Cancel
+                        </button>
+                        <button
+                                type="submit"
+                                class="px-5 py-2 gradient-bg text-white rounded-lg hover:shadow-lg transition duration-300 font-medium">
+                            Add Todo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-12 text-center">
+        <div class="gradient-bg text-white py-4 px-8 rounded-2xl shadow-lg inline-block">
+            <p class="text-sm flex items-center justify-center gap-2">
+                <span>Developed with</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                </svg>
+                <span>by</span>
+                <a href="https://tanvirhossenbappy.com/" target="_blank" class="font-bold hover:underline transition-all flex items-center">
+                    Tanvir Hossen Bappy
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                    </svg>
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+</body>
+</html>
