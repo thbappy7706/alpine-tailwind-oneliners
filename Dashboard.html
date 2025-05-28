@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Alpine.js</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981',
+                        secondary: '#059669',
+                        accent: '#34d399',
+                        dark: '#1e293b',
+                        expense: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #34d399 100%);
+            background-size: 200% 200%;
+            animation: gradientAnimation 10s ease infinite;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .sidebar-transition {
+            transition: all 0.1s ease-in-out;
+        }
+
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .modal-content.show {
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div x-data="{
+    sidebarOpen: true,
+    showDashboardModal: false,
+      newUser: {
+        name: '',
+        email: '',
+        role: '',
+        status: ''
+    },
+    addUser() {
+        console.log(this.newUser)
+        this.showUserModal = false;
+    },
+    currentPage: 1,
+    itemsPerPage: 5,
+    searchQuery: '',
+    sortField: 'name',
+    sortDirection: 'asc',
+    notifications: [
+      { id: 1, message: 'New user registered', time: '5m ago' },
+      { id: 2, message: 'Server update completed', time: '1h ago' },
+      { id: 3, message: 'Database backup successful', time: '2h ago' }
+    ],
+    users: [
+      { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active' },
+      { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', status: 'Active' },
+      { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Editor', status: 'Inactive' },
+      { id: 4, name: 'Sarah Wilson', email: 'sarah@example.com', role: 'User', status: 'Active' },
+      { id: 5, name: 'Tom Brown', email: 'tom@example.com', role: 'Editor', status: 'Active' },
+      { id: 6, name: 'Lisa Anderson', email: 'lisa@example.com', role: 'User', status: 'Inactive' },
+      { id: 7, name: 'David Lee', email: 'david@example.com', role: 'Admin', status: 'Active' },
+      { id: 8, name: 'Emma Davis', email: 'emma@example.com', role: 'User', status: 'Active' },
+      { id: 9, name: 'Chris Martin', email: 'chris@example.com', role: 'Editor', status: 'Active' },
+      { id: 10, name: 'Amy White', email: 'amy@example.com', role: 'User', status: 'Inactive' }
+    ],
+    get filteredUsers() {
+      return this.users
+        .filter(user =>
+          user.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+          user.role.toLowerCase().includes(this.searchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+          const modifier = this.sortDirection === 'asc' ? 1 : -1;
+          return a[this.sortField] > b[this.sortField] ? modifier : -modifier;
+        });
+    },
+    get paginatedUsers() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      const end = start + this.itemsPerPage;
+      return this.filteredUsers.slice(start, end);
+    },
+    get totalPages() {
+      return Math.ceil(this.filteredUsers.length / this.itemsPerPage);
+    },
+   toggleSort(column) {
+    if (this.sortField === column) {
+        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        this.sortField = column;
+        this.sortDirection = 'asc';
+    }
+}
+
+  }" class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="sidebar-transition bg-dark text-white" :class="sidebarOpen ? 'w-64' : 'w-20'">
+        <div class="p-4">
+            <div class="flex items-center justify-between">
+                <h1 x-show="sidebarOpen" class="text-xl font-bold">Dashboard</h1>
+                <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <nav class="mt-4">
+            <a href="#" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span x-show="sidebarOpen" class="ml-3">Dashboard</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span x-show="sidebarOpen" class="ml-3">Users</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span x-show="sidebarOpen" class="ml-3">Projects</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="flex-1 p-6 overflow-auto">
+        <!-- Your content goes here -->
+        <h2 class="text-2xl font-semibold mb-4">Welcome to the Dashboard</h2>
+
+        <!-- Add this to your <main> block in the previous HTML -->
+        <div class="mb-4 flex items-center justify-between">
+            <input type="text" placeholder="Search..." x-model="searchQuery" class="border p-2 rounded w-1/3" />
+            <button @click="showDashboardModal = true" class="bg-primary text-white px-4 py-2 rounded hover:bg-secondary">Add User</button>
+        </div>
+
+
+        <table class="min-w-full bg-white rounded shadow overflow-hidden">
+            <thead class="bg-gray-200 text-left">
+            <tr>
+                <template x-for="column in ['name', 'email', 'role', 'status']" :key="column">
+                    <th class="p-3 cursor-pointer select-none" @click="toggleSort(column)">
+                        <div class="flex items-center space-x-1">
+                            <span class="capitalize" x-text="column"></span>
+                            <template x-if="sortField === column">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"
+                                     :class="sortDirection === 'asc' ? 'rotate-180' : ''"
+                                     viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+                                </svg>
+                            </template>
+                        </div>
+                    </th>
+                </template>
+
+            </tr>
+            </thead>
+            <tbody>
+            <template x-for="user in paginatedUsers" :key="user.id">
+                <tr class="border-t">
+                    <td class="p-3 text-left" x-text="user.name"></td>
+                    <td class="p-3 text-left" x-text="user.email"></td>
+                    <td class="p-3 text-left" x-text="user.role"></td>
+                    <td class="p-3 text-left">
+                        <span :class="user.status === 'Active' ? 'text-green-500' : 'text-red-500'" x-text="user.status"></span>
+                    </td>
+                </tr>
+            </template>
+            </tbody>
+        </table>
+
+
+
+        <div class="mt-4 flex justify-between items-center">
+            <div>
+                <button @click="currentPage = Math.max(1, currentPage - 1)" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">Prev</button>
+                <span class="mx-2">Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span></span>
+                <button @click="currentPage = Math.min(totalPages, currentPage + 1)" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">Next</button>
+            </div>
+        </div>
+
+
+
+
+        <!-- Dashboard Modal -->
+        <div
+                x-show="showDashboardModal"
+                x-transition:enter="transition ease-out duration-50"
+                x-transition:enter-start="opacity-0 transform scale-90"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-90"
+                class="fixed inset-0 z-50 overflow-y-auto"
+                style="display: none;"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <!-- Overlay -->
+                <div class="fixed inset-0 bg-black opacity-40"></div>
+
+                <!-- Modal Content -->
+                <div class="relative bg-white rounded-xl p-8 max-w-2xl w-full shadow-2xl border-t-4 border-primary">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-dark flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Dashboard Details
+                        </h2>
+                        <button @click="showDashboardModal = false" class="text-gray-400 hover:text-dark text-xl font-bold">&times;</button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="space-y-4">
+                        <!-- Add your dashboard form fields or content here -->
+                        <p class="text-gray-700">This is a dashboard modal using the same structure as the "Add Expense" modal.</p>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                            <input type="text" x-model="newUser.name" placeholder="Full name" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-dark placeholder-gray-400" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" x-model="newUser.email" placeholder="example@email.com" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-dark placeholder-gray-400" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                            <select x-model="newUser.role" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-dark">
+                                <option value="">Select Role</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Editor">Editor</option>
+                                <option value="User">User</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select x-model="newUser.status" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-dark">
+                                <option value="">Select Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+
+
+
+                    </div>
+
+                    <!-- Modal Actions -->
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button @click="showDashboardModal = false" class="px-5 py-2 bg-gray-100 text-dark rounded-lg hover:bg-gray-200 transition duration-300 font-medium">Close</button>
+                        <button @click="#" class="px-5 py-2 gradient-bg text-white rounded-lg hover:shadow-lg transition duration-300 font-medium">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Footer -->
+        <footer class="mt-20 text-center sticky">
+            <div class="gradient-bg text-white py-4 px-8 rounded-2xl shadow-lg inline-block">
+                <p class="text-sm flex items-center justify-center gap-2">
+                    <span>Developed with</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                    </svg>
+                    <span>by</span>
+                    <a href="https://tanvirhossenbappy.com/" target="_blank" class="font-bold hover:underline transition-all flex items-center">
+                        Tanvir Hossen Bappy
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                        </svg>
+                    </a>
+                </p>
+            </div>
+        </footer>
+
+    </main>
+
+
+</div>
+
+
+
+</body>
+</html>
+
+
+
+
