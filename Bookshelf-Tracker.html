@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookshelf Tracker - Alpine.js</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A8A',       // Darker blue
+                        secondary: '#0E7490',     // Deep teal
+                        accent: '#1C3D3D',        // Muted green-teal
+                        dark: '#0F172A',          // Deep navy
+                        cream: '#E2E8F0',         // Muted off-white
+                        parchment: '#CBD5E1',     // Cool parchment (darker)
+                        gold: '#D69E2E',          // Antique gold
+                    }
+                }
+            }
+        }
+    </script>
+
+
+<style>
+    body {
+        font-family: 'Crimson Text', serif;
+        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 25%, #0E7490 50%, #1C3D3D 75%, #CBD5E1 100%);
+        background-attachment: fixed;
+    }
+
+    body::before {
+        background-image:
+                radial-gradient(circle at 25% 25%, rgba(14, 116, 144, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(30, 58, 138, 0.08) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' ... %3E");
+    }
+
+    .book-spine-bg {
+        background: linear-gradient(45deg, #1E3A8A 0%, #0E7490 50%, #1C3D3D 100%);
+    }
+
+    .parchment-card {
+        background: linear-gradient(145deg, #CBD5E1 0%, #E2E8F0 100%);
+        border: 2px solid #0E7490;
+        box-shadow:
+                0 10px 25px rgba(30, 58, 138, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -1px 0 rgba(30, 58, 138, 0.15);
+    }
+
+    .book-card:hover {
+        box-shadow:
+                0 20px 40px rgba(30, 58, 138, 0.3),
+                0 0 0 1px rgba(14, 116, 144, 0.2);
+    }
+
+    .vintage-button {
+        background: linear-gradient(145deg, #0E7490 0%, #1E3A8A 100%);
+        border: 2px solid #1C3D3D;
+        box-shadow:
+                0 4px 15px rgba(30, 58, 138, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .vintage-button:hover {
+        box-shadow:
+                0 6px 20px rgba(30, 58, 138, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    .star {
+        color: #0E7490;
+    }
+
+    .star:hover,
+    .star.active {
+        color: #D69E2E; /* Antique Gold */
+    }
+
+    .vintage-input {
+        background: #E2E8F0;
+        border: 2px solid #0E7490;
+    }
+
+    .vintage-input:focus {
+        border-color: #1E3A8A;
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.2);
+        background: #fff;
+    }
+
+    .book-title {
+        background: linear-gradient(45deg, #d55e44, #dcebee, #aa6f52);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+</style>
+
+
+</head>
+<body class="min-h-screen py-8">
+<div class="container mx-auto px-4 max-w-7xl" x-data="{
+        books: JSON.parse(localStorage.getItem('bookshelf') || '[]'),
+        newBook: {
+            title: '',
+            author: '',
+            genre: '',
+            rating: 0,
+            review: '',
+            isRead: false,
+            dateFinished: ''
+        },
+        showModal: false,
+        editingBook: null,
+        searchQuery: '',
+        filterStatus: 'all',
+        filterGenre: 'all',
+        showToast: false,
+        toastMessage: '',
+        
+        addBook() {
+            if (this.newBook.title.trim() === '' || this.newBook.author.trim() === '') return;
+            
+            const book = {
+                id: Date.now(),
+                ...this.newBook,
+                dateAdded: new Date().toISOString().split('T')[0]
+            };
+            
+            if (this.editingBook) {
+                const index = this.books.findIndex(b => b.id === this.editingBook.id);
+                this.books[index] = { ...book, id: this.editingBook.id };
+                this.showToastMessage('Book updated successfully!');
+                this.editingBook = null;
+            } else {
+                this.books.push(book);
+                this.showToastMessage('Book added successfully!');
+            }
+            
+            this.resetForm();
+            this.saveBooks();
+        },
+        
+        editBook(book) {
+            this.newBook = { ...book };
+            this.editingBook = book;
+            this.showModal = true;
+        },
+        
+        deleteBook(id) {
+            this.books = this.books.filter(book => book.id !== id);
+            this.saveBooks();
+            this.showToastMessage('Book deleted successfully!');
+        },
+        
+        resetForm() {
+            this.newBook = {
+                title: '',
+                author: '',
+                genre: '',
+                rating: 0,
+                review: '',
+                isRead: false,
+                dateFinished: ''
+            };
+            this.showModal = false;
+            this.editingBook = null;
+        },
+        
+        saveBooks() {
+            localStorage.setItem('bookshelf', JSON.stringify(this.books));
+        },
+        
+        setRating(rating) {
+            this.newBook.rating = rating;
+        },
+        
+        filteredBooks() {
+            return this.books.filter(book => {
+                const matchesSearch = book.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                                    book.author.toLowerCase().includes(this.searchQuery.toLowerCase());
+                const matchesStatus = this.filterStatus === 'all' || 
+                                    (this.filterStatus === 'read' && book.isRead) ||
+                                    (this.filterStatus === 'unread' && !book.isRead);
+                const matchesGenre = this.filterGenre === 'all' || book.genre === this.filterGenre;
+                
+                return matchesSearch && matchesStatus && matchesGenre;
+            });
+        },
+        
+        getGenres() {
+            const genres = [...new Set(this.books.map(book => book.genre).filter(genre => genre))];
+            return genres.sort();
+        },
+        
+        getStats() {
+            const readBooks = this.books.filter(book => book.isRead);
+            const totalRating = readBooks.reduce((sum, book) => sum + book.rating, 0);
+            return {
+                total: this.books.length,
+                read: readBooks.length,
+                unread: this.books.length - readBooks.length,
+                averageRating: readBooks.length > 0 ? (totalRating / readBooks.length).toFixed(1) : 0
+            };
+        },
+        
+        showToastMessage(message) {
+            this.toastMessage = message;
+            this.showToast = true;
+            setTimeout(() => {
+                this.showToast = false;
+            }, 3000);
+        }
+    }">
+    
+    <!-- Toast Notification -->
+    <div x-show="showToast" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="transform translate-x-full"
+         x-transition:enter-end="transform translate-x-0"
+         x-transition:leave="transition ease-in duration-300"
+         x-transition:leave-start="transform translate-x-0"
+         x-transition:leave-end="transform translate-x-full"
+         class="toast bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg"
+         style="display: none;">
+        <span x-text="toastMessage"></span>
+    </div>
+
+    <!-- Header -->
+    <div class="book-spine-bg p-8 rounded-2xl shadow-2xl mb-8 relative overflow-hidden border-4 border-accent">
+        <div class="absolute -right-8 -top-8 opacity-20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-40 w-40 text-cream" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/>
+                <path d="M17.5 10.5c.88 0 1.73.09 2.5.26V9.24c-.79-.15-1.64-.24-2.5-.24-1.7 0-3.24.29-4.5.83v1.66c1.13-.64 2.7-.99 4.5-.99zM13 12.49v1.66c1.13-.64 2.7-.99 4.5-.99.88 0 1.73.09 2.5.26V11.9c-.79-.15-1.64-.24-2.5-.24-1.7 0-3.24.29-4.5.83zM17.5 14.33c-1.7 0-3.24.29-4.5.83v1.66c1.13-.64 2.7-.99 4.5-.99.88 0 1.73.09 2.5.26v-1.52c-.79-.15-1.64-.24-2.5-.24z"/>
+            </svg>
+        </div>
+        <div class="flex flex-col items-center justify-center relative z-10">
+            <div class="floating-book mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-cream drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/>
+                </svg>
+            </div>
+            <span class="ornament">❦</span>
+            <h1 class="book-title text-5xl font-bold text-center mb-2">Literary Sanctuary</h1>
+            <span class="ornament">❦</span>
+            <p class="text-cream text-center text-lg italic mt-4 font-medium">
+                "A room without books is like a body without a soul" - Cicero
+            </p>
+            <div class="flex items-center mt-4 text-cream opacity-80">
+                <div class="w-16 h-px bg-cream"></div>
+                <span class="mx-4 text-sm">Your Personal Reading Chronicle</span>
+                <div class="w-16 h-px bg-cream"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8" x-data="{ stats: getStats() }" x-init="$watch('books', () => stats = getStats())">
+        <div class="parchment-card p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
+            <div class="text-3xl font-bold text-primary mb-2" x-text="stats.total"></div>
+            <div class="text-sm text-dark font-medium">Total Volumes</div>
+            <div class="w-8 h-1 bg-secondary mx-auto mt-2 rounded"></div>
+        </div>
+        <div class="parchment-card p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
+            <div class="text-3xl font-bold text-green-600 mb-2" x-text="stats.read"></div>
+            <div class="text-sm text-dark font-medium">Books Read</div>
+            <div class="w-8 h-1 bg-green-500 mx-auto mt-2 rounded"></div>
+        </div>
+        <div class="parchment-card p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
+            <div class="text-3xl font-bold text-amber-600 mb-2" x-text="stats.unread"></div>
+            <div class="text-sm text-dark font-medium">To Discover</div>
+            <div class="w-8 h-1 bg-amber-500 mx-auto mt-2 rounded"></div>
+        </div>
+        <div class="parchment-card p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
+            <div class="text-3xl font-bold text-gold mb-2" x-text="stats.averageRating"></div>
+            <div class="text-sm text-dark font-medium">Avg Rating</div>
+            <div class="w-8 h-1 bg-gold mx-auto mt-2 rounded"></div>
+        </div>
+    </div>
+
+    <!-- Add Book Button -->
+    <button
+            @click="showModal = true"
+            class="w-full vintage-button text-cream px-6 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 mb-8 relative z-10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        <span>Add New Literary Treasure</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/>
+        </svg>
+    </button>
+
+    <!-- Search and Filters -->
+    <div class="parchment-card p-8 rounded-2xl mb-8">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-primary mb-2" style="font-family: 'Playfair Display', serif;">Explore Your Collection</h2>
+            <div class="w-24 h-1 bg-secondary mx-auto rounded"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Search -->
+            <div class="relative">
+                <label class="block text-sm font-semibold text-dark mb-2">Search Literature</label>
+                <input
+                        type="text"
+                        x-model="searchQuery"
+                        placeholder="Find books or authors..."
+                        class="vintage-input w-full px-4 py-3 pl-12 rounded-lg focus:outline-none text-dark placeholder-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-4 top-11 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-sm font-semibold text-dark mb-2">Reading Status</label>
+                <select x-model="filterStatus" class="vintage-input w-full px-4 py-3 rounded-lg focus:outline-none text-dark">
+                    <option value="all">All Volumes</option>
+                    <option value="read">Completed</option>
+                    <option value="unread">Awaiting Discovery</option>
+                </select>
+            </div>
+
+            <!-- Genre Filter -->
+            <div>
+                <label class="block text-sm font-semibold text-dark mb-2">Literary Genre</label>
+                <select x-model="filterGenre" class="vintage-input w-full px-4 py-3 rounded-lg focus:outline-none text-dark">
+                    <option value="all">All Genres</option>
+                    <template x-for="genre in getGenres()" :key="genre">
+                        <option :value="genre" x-text="genre"></option>
+                    </template>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Books Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+        <template x-for="book in filteredBooks()" :key="book.id">
+            <div class="book-card parchment-card rounded-2xl overflow-hidden border-l-8 border-primary relative">
+                <!-- Book Spine Effect -->
+                <div class="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-primary to-secondary"></div>
+
+                <div class="p-6 relative">
+                    <!-- Header with Title and Actions -->
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-xl font-bold text-dark leading-tight pr-4" style="font-family: 'Playfair Display', serif;" x-text="book.title"></h3>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button @click="editBook(book)" class="text-secondary hover:text-primary transition-colors p-1 rounded-full hover:bg-cream">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                            </button>
+                            <button @click="deleteBook(book.id)" class="text-red-600 hover:text-red-800 transition-colors p-1 rounded-full hover:bg-red-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Author -->
+                    <p class="text-secondary font-medium mb-4 italic" x-text="'by ' + book.author"></p>
+
+                    <!-- Genre and Rating -->
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-3 py-1 bg-secondary text-cream text-sm rounded-full font-medium" x-text="book.genre"></span>
+                        <div class="flex items-center gap-1">
+                            <template x-for="i in 5" :key="i">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                     :class="i <= book.rating ? 'text-gold' : 'text-gray-300'"
+                                     class="h-5 w-5 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Status and Date -->
+                    <div class="flex items-center justify-between mb-4">
+                        <span :class="book.isRead ? 'bg-green-100 text-green-800 border-green-200' : 'bg-amber-100 text-amber-800 border-amber-200'"
+                              class="px-3 py-1 text-sm rounded-full font-medium border-2"
+                              x-text="book.isRead ? '📖 Completed' : '📚 To Read'"></span>
+                        <span class="text-sm text-gray-600 font-medium" x-text="book.dateFinished || book.dateAdded"></span>
+                    </div>
+
+                    <!-- Review -->
+                    <div x-show="book.review" class="mt-4 pt-4 border-t-2 border-secondary border-opacity-20">
+                        <h4 class="text-sm font-semibold text-primary mb-2">Personal Notes:</h4>
+                        <p class="text-sm text-dark leading-relaxed italic" x-text="book.review"></p>
+                    </div>
+
+                    <!-- Decorative Element -->
+                    <div class="absolute bottom-2 right-2 text-secondary opacity-20">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="filteredBooks().length === 0" class="text-center py-16">
+        <div class="parchment-card p-12 rounded-2xl max-w-md mx-auto">
+            <div class="floating-book mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-secondary mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/>
+                </svg>
+            </div>
+            <span class="ornament text-accent">❦</span>
+            <h3 class="text-2xl font-bold text-primary mb-3" style="font-family: 'Playfair Display', serif;">Your Library Awaits</h3>
+            <span class="ornament text-accent">❦</span>
+            <p class="text-dark mb-6 italic leading-relaxed">
+                "The man who does not read has no advantage over the man who cannot read." - Mark Twain
+            </p>
+            <p class="text-secondary mb-8 font-medium">Begin your literary journey by adding your first treasured volume!</p>
+            <button @click="showModal = true" class="vintage-button text-cream px-8 py-3 rounded-xl font-bold transition duration-300 relative z-10">
+                📚 Start Your Collection
+            </button>
+        </div>
+    </div>
+
+    <!-- Add/Edit Book Modal -->
+    <div
+            x-show="showModal"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform scale-90"
+            x-transition:enter-end="opacity-100 transform scale-100"
+            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave-start="opacity-100 transform scale-100"
+            x-transition:leave-end="opacity-0 transform scale-90"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-dark opacity-60" @click="resetForm()"></div>
+            <div class="relative parchment-card rounded-2xl p-8 max-w-3xl w-full shadow-2xl border-4 border-accent max-h-[90vh] overflow-y-auto">
+                <div class="text-center mb-8">
+                    <span class="ornament text-accent">❦</span>
+                    <h2 class="text-3xl font-bold text-primary mb-2" style="font-family: 'Playfair Display', serif;">
+                        <span x-text="editingBook ? 'Edit Literary Entry' : 'Add New Volume'"></span>
+                    </h2>
+                    <span class="ornament text-accent">❦</span>
+                    <div class="w-24 h-1 bg-secondary mx-auto mt-4 rounded"></div>
+                </div>
+
+                <form @submit.prevent="addBook()">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Title -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold text-primary mb-3">📖 Book Title *</label>
+                            <input
+                                    type="text"
+                                    x-model="newBook.title"
+                                    placeholder="Enter the title of your literary treasure..."
+                                    required
+                                    class="vintage-input w-full px-4 py-4 rounded-xl focus:outline-none text-dark placeholder-gray-500 font-medium">
+                        </div>
+
+                        <!-- Author -->
+                        <div>
+                            <label class="block text-sm font-bold text-primary mb-3">✍️ Author *</label>
+                            <input
+                                    type="text"
+                                    x-model="newBook.author"
+                                    placeholder="Enter author's name..."
+                                    required
+                                    class="vintage-input w-full px-4 py-4 rounded-xl focus:outline-none text-dark placeholder-gray-500 font-medium">
+                        </div>
+
+                        <!-- Genre -->
+                        <div>
+                            <label class="block text-sm font-bold text-primary mb-3">📚 Literary Genre</label>
+                            <input
+                                    type="text"
+                                    x-model="newBook.genre"
+                                    placeholder="e.g., Fiction, Mystery, Romance, Philosophy..."
+                                    class="vintage-input w-full px-4 py-4 rounded-xl focus:outline-none text-dark placeholder-gray-500 font-medium">
+                        </div>
+
+                        <!-- Rating -->
+                        <div>
+                            <label class="block text-sm font-bold text-primary mb-3">⭐ Your Rating</label>
+                            <div class="star-rating justify-start">
+                                <template x-for="i in 5" :key="i">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                         @click="setRating(i)"
+                                         :class="i <= newBook.rating ? 'text-gold' : 'text-gray-300'"
+                                         class="star h-10 w-10 cursor-pointer transition-all duration-200 hover:scale-110" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Read Status -->
+                        <div>
+                            <label class="block text-sm font-bold text-primary mb-3">📊 Reading Status</label>
+                            <div class="flex items-center gap-6">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" x-model="newBook.isRead" :value="false" class="mr-3 text-primary w-4 h-4">
+                                    <span class="text-dark font-medium">📚 To Read</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" x-model="newBook.isRead" :value="true" class="mr-3 text-primary w-4 h-4">
+                                    <span class="text-dark font-medium">📖 Completed</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Date Finished -->
+                        <div x-show="newBook.isRead">
+                            <label class="block text-sm font-bold text-primary mb-3">📅 Date Finished</label>
+                            <input
+                                    type="date"
+                                    x-model="newBook.dateFinished"
+                                    class="vintage-input w-full px-4 py-4 rounded-xl focus:outline-none text-dark font-medium">
+                        </div>
+
+                        <!-- Review -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold text-primary mb-3">📝 Personal Review & Notes</label>
+                            <textarea
+                                    x-model="newBook.review"
+                                    placeholder="Share your thoughts, favorite quotes, or memorable moments from this literary journey..."
+                                    rows="5"
+                                    class="vintage-input w-full px-4 py-4 rounded-xl focus:outline-none text-dark placeholder-gray-500 resize-none font-medium leading-relaxed"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center gap-6 mt-10 pt-6 border-t-2 border-secondary border-opacity-20">
+                        <button
+                                type="button"
+                                @click="resetForm()"
+                                class="px-8 py-3 bg-gray-200 text-dark rounded-xl hover:bg-gray-300 transition duration-300 font-bold border-2 border-gray-300">
+                            Cancel
+                        </button>
+                        <button
+                                type="submit"
+                                class="vintage-button text-cream px-8 py-3 rounded-xl font-bold transition duration-300 relative z-10">
+                            <span x-text="editingBook ? '📚 Update Volume' : '📖 Add to Library'"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-16 text-center">
+        <div class="parchment-card py-6 px-12 rounded-2xl shadow-lg inline-block border-2 border-accent">
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <span class="ornament text-accent">❦</span>
+                <span class="text-primary font-bold text-lg" style="font-family: 'Playfair Display', serif;">Literary Sanctuary</span>
+                <span class="ornament text-accent">❦</span>
+            </div>
+            <p class="text-sm flex items-center justify-center gap-2 text-dark">
+                <span>Crafted with</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                </svg>
+                <span>and passion for books by</span>
+                <a href="https://tanvirhossenbappy.com/" target="_blank" class="font-bold text-secondary hover:text-primary transition-all flex items-center hover:underline">
+                    Tanvir Hossen Bappy
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                    </svg>
+                </a>
+            </p>
+            <div class="mt-3 text-xs text-secondary italic">
+                "A reader lives a thousand lives before he dies" - George R.R. Martin
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
